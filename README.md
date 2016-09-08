@@ -1,2 +1,2 @@
 # TLEN_5330
-Data Communications Class Homework
+Data communications homework and other assignments related to the class.
