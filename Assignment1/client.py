@@ -7,7 +7,15 @@ def main():
         print CONSTANT.invalid_arguments
         sys.exit(2)
     else:
-        sender = SENDER(1024)
-        sender.send("hi", sys.argv[1], int(sys.argv[2]))
+        sender = SENDER()
+        server_address = sys.argv[1]
+        server_port = int(sys.argv[2])
+        while 1:
+            commands = raw_input()
+            sender.send_command(commands, server_address, server_port)
+            sender.handle_command(commands, server_address, server_port)
+
+
+
 
 main()
