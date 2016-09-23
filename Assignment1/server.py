@@ -1,6 +1,6 @@
 import sys
 from classes.constant import CONSTANT
-from classes.listener import LISTENER
+from classes.handler import SERVER_HANDLER
 
 def main():
     if (len(sys.argv) != 2):
@@ -9,7 +9,6 @@ def main():
     elif (int(sys.argv[1]) < 5000):
         print CONSTANT.invalid_port_number
         return
-    listener = LISTENER(5000)
-    listener.start()
-
+    handler = SERVER_HANDLER(int(sys.argv[1]))
+    handler.start()
 main()
