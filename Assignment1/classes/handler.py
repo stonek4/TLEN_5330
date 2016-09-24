@@ -6,35 +6,35 @@ from sender import SENDER
 class CLIENT_HANDLER:
     def put(self, file_name):
         self.sender.send_message("put" + " " + file_name)
-        self.receiver.receive(5)
+        if(self.receiver.receive(5) == False):
+            print "No server response"
+            return False
         try:
             afile = open("Client_Files/" + file_name, "rb")
         except:
             print "Couldn't open file"
             return False
-        print "Beginning to send file"
-        packet = afile.read(CONSTANT.packet_size)
-        except_count = 0
-        while packet:
-            if (except_count > 5):
-                print "gave up on sending file"
-                break
-            self.sender.send_message(packet)
-            try:
-                self.receiver.receive(5)
-                packet = afile.read(CONSTANT.packet_size)
-            except socket.timeout:
-                print "Packet failed to send, retrying..."
-                except_count += 1
-        print "Finished sending file"
-        self.sender.send_message("$$$done$$$")
+        send_file(afile, self.sender, self.receiver)
+
+    def get(self, file_name):
+        self.sender.send_message("get" + " " + file_name)
+        if(self.receiver.receive(5) == False):
+            print "No server response"
+            return False
+        try:
+            afile = open("Client_Files/" + file_name, "wb")
+        except:
+            print "Couldn't open file"
+            return False
+        receive_file(afile, self.sender, self.receiver)
+
     def start(self):
         while 1:
             data = raw_input()
             inputs = data.split()
             if len(inputs) > 1:
                 if inputs[0] == "get":
-                    print "get"
+                    self.get(inputs[1])
                 elif inputs[0] == "put":
                     self.put(inputs[1])
             elif data == "list":
@@ -48,26 +48,25 @@ class CLIENT_HANDLER:
         return
 
 class SERVER_HANDLER:
-    def put(self, file_name):
+    def put(self, file_name, sender):
         try:
             afile = open("Server_Files/"+file_name, "wb")
         except:
             print "couldn't open file"
             return False
-        while 1:
-            try:
-                output = self.receiver.receive(5)
-                sender = SENDER(output[1][0], output[1][1])
-                if (output[0] == "$$$done$$$"):
-                    sender.send_ack()
-                    break
-                afile.write(output[0])
-                sender.send_ack()
-            except socket.timeout:
-                print "timed out"
-                return False
+        receive_file(afile, sender, self.receiver)
+
+    def get(self, file_name, sender):
+        try:
+            afile = open("Server_Files/"+file_name, "rb")
+        except:
+            print "couldn't open file"
+            return False
+        send_file(afile, sender, self.receiver)
+
     def exit(self):
         self.socket.close()
+
     def start(self):
         while 1:
             data = self.receiver.receive(1000)
@@ -76,9 +75,9 @@ class SERVER_HANDLER:
             sender.send_ack()
             if len(inputs) > 1:
                 if (inputs[0] == "put"):
-                    self.put(inputs[1])
+                    self.put(inputs[1], sender)
                 elif (inputs[0] == "get"):
-                    print "get"
+                    self.get(inputs[1], sender)
             elif data[0] == "list":
                 print "list"
             elif data[0] == "exit":
@@ -90,3 +89,41 @@ class SERVER_HANDLER:
         self.socket.settimeout(5)
         self.receiver = RECEIVER(port)
         return
+
+
+def send_file(afile, sender, receiver):
+    packet = afile.read(CONSTANT.packet_size)
+    except_count = 0
+    print "Sending file"
+    while packet:
+        if (except_count > 5):
+            print "Gave up on sending file after multiple timeouts."
+            return False
+        sender.send_message(packet)
+        if (receiver.receive(5)):
+            packet = afile.read(CONSTANT.packet_size)
+        else:
+            print "Packet failed to send, retrying..."
+            except_count += 1
+    print "Finished sending file"
+    sender.send_message("$$$done$$$")
+    receiver.receive(5)
+
+def receive_file(afile, sender, receiver):
+    print "Receiving file"
+    except_count = 0
+    while 1:
+        if (except_count > 5):
+            print "Gave up on receiving file after multiple timeouts."
+            return False
+        output = receiver.receive(5)
+        if(output):
+            if (output[0] == "$$$done$$$"):
+                sender.send_ack()
+                break
+            afile.write(output[0])
+            sender.send_ack()
+        else:
+            print "Timed out, re-waiting"
+            except_count += 1
+    print "Finished receiving file"

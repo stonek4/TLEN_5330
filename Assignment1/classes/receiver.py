@@ -8,7 +8,7 @@ class RECEIVER:
             data, client_address = self.socket.recvfrom(CONSTANT.packet_size)
             return [data, client_address]
         except:
-            print "didn't receive"
+            print "Timed out, didn't receive packet."
             return False
     def __init__(self, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
