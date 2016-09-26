@@ -23,13 +23,19 @@ class SERVER_HANDLER:
         send_file(afile, sender, self.receiver)
 
     def list(self, sender):
+        print CONSTANT.listing_files
         all_files = ""
         for afile in os.listdir(CONSTANT.server_file_location):
             all_files = all_files + afile + " "
         sender.send_message(all_files)
 
     def exit(self):
+        print CONSTANT.exiting
         self.socket.close()
+
+    def other(self, sender, command):
+        print CONSTANT.unknown_cmd
+        sender.send_message(command + CONSTANT.unknown_cmd)
 
     def start(self):
         while 1:
@@ -43,7 +49,7 @@ class SERVER_HANDLER:
                 elif (inputs[0] == CONSTANT.get_cmd):
                     self.get(inputs[1], sender)
                 else:
-                    sender.send_message(data[0] + CONSTANT.unknown_cmd)
+                    self.other(sender, data[0])
             elif data[0] == CONSTANT.list_cmd:
                 self.list(sender)
             elif data[0] == CONSTANT.exit_cmd:
@@ -52,7 +58,7 @@ class SERVER_HANDLER:
             elif data[0] == CONSTANT.ack:
                 print data[1][0] + CONSTANT.connected
             else:
-                sender.send_message(data[0] + CONSTANT.unknown_cmd)
+                self.other(sender, data[0])
             print ""
         return True
     def __init__(self, port):

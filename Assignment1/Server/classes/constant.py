@@ -7,6 +7,8 @@ class CONSTANT:
     file_error = "File could not be found/opened"
     server_starting = "Server started..."
     client_starting = "Client started, available commands are:"
+    listing_files = "Sending file list..."
+    exiting = "Request to kill server session received, exiting..."
     sending_file = "Sending file..."
     finished_sending_file = "File send completed"
     receiving_file = "Receiving file..."
