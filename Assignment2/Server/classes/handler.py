@@ -15,9 +15,8 @@ class SERVER_HANDLER:
             path += "index.html"
         try:
             file_type = "."+path.split(".")[1]
-            print file_type
-            size = os.path.getsize(path)
             afile = open(path, "rb")
+            size = os.path.getsize(path)
             header = http_format + " " + CONSTANT.http_OK + "\n"
             header += "Content-Type: " + CONSTANT.content_types[file_type] + "\n"
             header += "Content-Length: " + str(size) + "\n" + "\n"
@@ -53,11 +52,15 @@ class SERVER_HANDLER:
             data = receiver.receive()
             if (data == False):
                 return
-            else:
-                request = data[0].split()
-                print [ip, port], "~ issued", request[0], "command"
+            request = data[0].split()
+            if (len(request) >= 3):
+                print [ip, port], "~", request[0], "command"
                 if (request[0] == "GET"):
+                    print [ip, port], "~ is requesting", request[1]
+                    print [ip, port], "~ is using",request[2]
                     self.get(request[1], receiver, request[2])
+                if (request[2] == "HTTP/1.0"):
+                    break;
         receiver.close()
         exit()
 
@@ -71,8 +74,7 @@ class SERVER_HANDLER:
                 thread = threading.Thread(target=self.thread_handler,
                                         args=(data[0], data[1], data[2]))
                 thread.start()
-                threads.append(thread)
-        for thread in threads:
+        for thread in threading.enumerate():
             thread.join()
         return True
     def __init__(self):
