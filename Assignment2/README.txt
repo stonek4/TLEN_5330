@@ -1,42 +1,44 @@
-TLEN 5330-002: Assignment 1
+TLEN 5330-002: Assignment 2
 
-Contained in folder are two folders named "Client" and "Server".  To run the
-client, navigate into the "Client" folder and run:
-
-  python client.py [ip address] [port #]
-
+Contained in folder is one folder named "Server".
 To run the server, navigate into the "Server" folder and run:
 
-  python server.py [port #]
-
-Upon starting, the client will display:
-
-  Client started, available commands are:
-  put [file_name]
-  get [file_name]
-  list
-  exit
-
-The client will also behind the scenes send a message to the server to see if
-it can reach the server.  If it cannot reach the server it will display a
-message like:
-
-  Timed out, didn't receive packet.
-  Initial server contact failed, if server is started, maybe try using a different port?
+  python server.py
 
 Upon starting, the server will display:
 
   Server started...
 
-The client "directory" is stored in "Client/Client_Files".  The files stored in
-the client directory to begin with are:
+The server directory is currently stored in Server/www/ where index.html is the
+default file. This can be changed in the server configuration file which is
+located at Server/ws.conf
 
-  foo1.txt
-  foo2.jpg
-  foo3.zip
+Other settings can be changed in ws.conf including the file types, keep alive
+time, port number and more (see configuration file)
 
-The server "directory" is stored in "Server/Server_Files".  There are no files
-in the server directory to begin with.
+In order to test the server, use commands such as GET and POST, or access
+the server using the browser.  By default the server will use the localhost
+ip address so you could type that and the port number into the browser in
+order to access the default page.
+
+Using the page that is currently in the www directory, you can also send post
+requests to the server by typing into the input box and pressing enter.
+
+The program can handle a few different types of errors by sending a generic
+error file to the client. Errors handled are:
+
+  400
+  404
+  500
+  501
+
+In general any unknown errors fall under 500 when processing commands.
+
+It is a known bug that if you remove html from the configuration file that
+the server will not be able to show errors to the client.
+
+The server can be killed using CTRL-C.  Upon killing the server it will
+try to exit processes regardless of what the processes are doing.
 
 The python version used to test this program is:
 
@@ -45,13 +47,4 @@ The python version used to test this program is:
 Do not delete the .pyc files within the subdirectories of this project.  In the
 case that the project does not compile, you may try to recompile the project.
 
-Extra credit:  Although I did not do a system of sending duplicate packets, I
-did implement Stop and Wait in order to reduce file transfer errors.  Upon
-sending large files, the sender will send one packet at a time, and will wait
-for an acknowledgement from the receiver.  If it does not get an acknowledgement
-it will resend the file and will display output.  If the sender or receiver times
-out 5 times, It will permanently timeout and display that the file transfer failed.
-I realize that this is not a completely fool proof method as corrupted packets are
-not caught, however it does make sure that every packet reaches the receiver, and
-sending duplicates is not fool proof either, as well as taking twice as much data
-to send each file. 
+Extra credit: POST commands work, but need a certain html class in order to work

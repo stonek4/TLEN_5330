@@ -1,17 +1,21 @@
 import sys
-from classes.constant import CONSTANT
+from classes.constant import CONFIG
+from classes.constant import ERRORS
+from classes.constant import PATHS
+from classes.constant import INFO
 from classes.handler import SERVER_HANDLER
 
 def main():
-    CONSTANT.read_config("./ws.conf")
+    if (CONFIG.read_config(PATHS.config) == False):
+        return
     if (len(sys.argv) != 1):
-        print CONSTANT.invalid_arguments
+        print ERRORS.invalid_arguments
         sys.exit(2)
 
-    elif (int(CONSTANT.port) <= 5000 or int(CONSTANT.port) >= 65535):
+    elif (int(CONFIG.port) <= 5000 or int(CONFIG.port) >= 65535):
         return
 
     handler = SERVER_HANDLER()
-    print CONSTANT.server_starting
+    print INFO.starting
     handler.start()
 main()
