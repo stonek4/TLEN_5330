@@ -10,7 +10,7 @@ class RECEIVER:
                                                 int(CONFIG.packet_size))
             return [data, client_address]
         except socket.timeout:
-            return False
+            return ["",None]
 
     def send(self, data):
         try:
@@ -34,6 +34,7 @@ class RECEIVER:
 
     def connect(self, ip, port):
         self.socket.connect((ip, int(port)))
+        self.socket.settimeout(float(CONFIG.keep_alive_time))
 
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

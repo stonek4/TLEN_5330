@@ -120,7 +120,6 @@ class CONNECTION_HANDLER:
             server.send(request)
             while 1:
                 data = server.receive()
-                print data
                 if (data[0] != ""):
                     client.send(data[0])
                 else:
@@ -149,9 +148,10 @@ class CONNECTION_HANDLER:
             receiver.add_connection(conn)
             while 1:
                 data = receiver.receive()
-                if (data == False):
+                if (data[0] == ""):
                     print [ip, port], "~", INFO.timeout
                     break
+                print data
                 request = data[0].split('\r\n')
                 operation = request[0].split()
                 connection = "Close"
@@ -176,11 +176,12 @@ class CONNECTION_HANDLER:
                         tmp_port = url.port
                         if (tmp_port != None):
                             url_port = int(tmp_port)
-                        print url_ip, url_port
                         server = RECEIVER()
                         server.connect(url_ip, url_port)
                         self.get(data[0], server, receiver)
+                        self.close(server)
                     elif (operation[0] == "POST"):
+                        break
                         print [ip, port], "~ is requesting", operation[1]
                         print [ip, port], "~ is using",operation[2]
                         new_val = request[len(request)-1].split('=')[1]
@@ -193,7 +194,7 @@ class CONNECTION_HANDLER:
                         print ERRORS.invalid_command
                         self.bad_request(receiver, "method", operation[0])
 
-                    if (operation[2] == "HTTP/1.0" or connection.lower() != "keep-alive"):
+                    if (connection.lower() != "keep-alive"):
                         break
                 else:
                     self.bad_request(receiver, "unknown", "incorrect format")
@@ -204,7 +205,7 @@ class CONNECTION_HANDLER:
         self.close(receiver)
         exit()
     def __init__(self):
-        self.messages = MESSAGES("HTTP/1.1")
+        self.messages = MESSAGES("HTTP/1.0")
         return
 
 class SERVER_HANDLER:
@@ -213,9 +214,7 @@ class SERVER_HANDLER:
         try:
             while 1:
                 data = self.listener.accept()
-                if (data == False):
-                    break
-                else:
+                if (data != False):
                     connection = CONNECTION_HANDLER()
                     process = multiprocessing.Process(target=connection.process_handler,
                                             args=(data[0], data[1], data[2]))
