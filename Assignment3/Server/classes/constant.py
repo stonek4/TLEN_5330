@@ -37,6 +37,7 @@ class CONFIG:
     default_port = 80
     poll_time = 10
     document_root = ""
+    cache_root = "./cache/"
     packet_size = 1024
     max_connections = 1
     def __init__(self):

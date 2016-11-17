@@ -8,9 +8,9 @@ class RECEIVER:
         try:
             data, client_address = self.socket.recvfrom(
                                                 int(CONFIG.packet_size))
-            return [data, client_address]
+            return data
         except socket.timeout:
-            return ["",None]
+            return ""
 
     def send(self, data):
         try:

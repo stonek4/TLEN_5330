@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+Cache-Control: private
+Content-Type: text/html; charset=utf-8
+X-Frame-Options: SAMEORIGIN
+X-Request-Guid: 57c15f33-e5f7-415a-b4ba-5963ed894b12
+Content-Length: 105050
+Accept-Ranges: bytes
+Date: Thu, 17 Nov 2016 06:50:59 GMT
+Via: 1.1 varnish
+Age: 0
+Connection: keep-alive
+X-Served-By: cache-den6023-DEN
+X-Cache: MISS
+X-Cache-Hits: 0
+X-Timer: S1479365459.769003,VS0,VE60
+X-DNS-Prefetch-Control: off

@@ -1,10 +1,12 @@
 import os
+import sys
 import multiprocessing
 import shutil
 import tempfile
 import signal
 import urlparse
 import socket
+import hashlib
 from constant import CONFIG
 from constant import PATHS
 from constant import ERRORS
@@ -80,31 +82,6 @@ class CONNECTION_HANDLER:
         self.send_file(sender, open(path,"rb"))
 
     def post(self, file_name, sender, data):
-        path = PATHS.directory_root + file_name
-        if path == PATHS.directory_root + "/":
-            for name in CONFIG.directory_indexes:
-                if (os.path.isfile(path+name)):
-                    path += name
-                    break
-        try:
-            ftype = "."+path.split(".")[2]
-            CONFIG.content_types[ftype]
-            open(path)
-            self.add_post(path, data)
-            header = self.messages.get_header(path, ftype, 200)
-            sender.send(header)
-            self.send_file(sender, open(path,"rb"))
-            return
-        except IOError:
-            print ERRORS.invalid_file
-            self.not_found(sender, path)
-        except KeyError:
-            print ERRORS.not_supported
-            self.not_implemented(sender, ftype)
-        except Exception as e:
-            print ERRORS.server
-            print e
-            self.server_error(sender)
         return
 
     def put(self, sender):
@@ -116,22 +93,39 @@ class CONNECTION_HANDLER:
         return
 
     def get(self, request, server, client):
-        try:
+        new_hash = hashlib.md5(request)
+        if (os.path.isfile(CONFIG.cache_root+new_hash.hexdigest())):
+            h_file = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "r+")
+            header = h_file.read()
+            h_file.close()
+            client.send(header+"\r\n\r\n")
+            c_file = open(CONFIG.cache_root+new_hash.hexdigest(), "rb")
+            packet = c_file.read(int(CONFIG.packet_size))
+            while packet:
+                client.send(packet)
+                packet = c_file.read(int(CONFIG.packet_size))
+            c_file.close()
+        else:
+            new_file = open(CONFIG.cache_root+new_hash.hexdigest(), "wb")
+            new_header = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "w")
             server.send(request)
+            first = True
             while 1:
                 data = server.receive()
-                if (data[0] != ""):
-                    client.send(data[0])
+                if (data != ""):
+                    if (first == True):
+                        content = data.split('\r\n\r\n')
+                        new_header.write(content[0])
+                        new_file.write(content[1])
+                        first = False
+                    else:
+                        new_file.write(data)
+                    client.send(data)
                 else:
+                    new_file.close()
+                    new_header.close()
                     break
-            return
-        except IOError:
-            print ERRORS.invalid_file
-            self.not_found(client, request)
-        except Exception as e:
-            print ERRORS.server
-            print e
-            self.server_error(client)
+        return
 
     def close(self, sender):
         header = self.messages.get_header("", "", 0)
@@ -148,11 +142,10 @@ class CONNECTION_HANDLER:
             receiver.add_connection(conn)
             while 1:
                 data = receiver.receive()
-                if (data[0] == ""):
+                if (data == ""):
                     print [ip, port], "~", INFO.timeout
                     break
-                print data
-                request = data[0].split('\r\n')
+                request = data.split('\r\n')
                 operation = request[0].split()
                 connection = "Close"
 
@@ -178,14 +171,10 @@ class CONNECTION_HANDLER:
                             url_port = int(tmp_port)
                         server = RECEIVER()
                         server.connect(url_ip, url_port)
-                        self.get(data[0], server, receiver)
+                        self.get(data, server, receiver)
                         self.close(server)
                     elif (operation[0] == "POST"):
                         break
-                        print [ip, port], "~ is requesting", operation[1]
-                        print [ip, port], "~ is using",operation[2]
-                        new_val = request[len(request)-1].split('=')[1]
-                        self.post(operation[1], receiver, new_val)
                     elif (operation[0] == "PUT"):
                         self.put(receiver)
                     elif (operation[0] == "DELETE"):

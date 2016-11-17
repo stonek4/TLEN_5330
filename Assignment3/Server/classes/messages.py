@@ -30,5 +30,5 @@ class MESSAGES:
         self.not_implemented_header = http_format + " 501 Not Implemented"
         self.server_error_header = http_format + " 500 Internal Server Error"
         self.ok_header = http_format + " 200 OK"
-        self.close_header = "Connection: close" + "\n\n"
+        self.close_header = "Connection: close" + "\r\n\r\n"
         return
