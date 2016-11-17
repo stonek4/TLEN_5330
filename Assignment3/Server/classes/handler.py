@@ -7,6 +7,7 @@ import signal
 import urlparse
 import socket
 import hashlib
+import time
 from constant import CONFIG
 from constant import PATHS
 from constant import ERRORS
@@ -81,7 +82,8 @@ class CONNECTION_HANDLER:
         sender.send(header)
         self.send_file(sender, open(path,"rb"))
 
-    def post(self, file_name, sender, data):
+    def post(self, sender):
+        self.not_implemented(sender, "POST")
         return
 
     def put(self, sender):
@@ -92,9 +94,10 @@ class CONNECTION_HANDLER:
         self.not_implemented(sender, "DELETE")
         return
 
-    def get(self, request, server, client):
-        new_hash = hashlib.md5(request)
+    def get(self, proc, hashstring, request, server, client):
+        new_hash = hashlib.md5(hashstring)
         if (os.path.isfile(CONFIG.cache_root+new_hash.hexdigest())):
+            print proc,"~", INFO.using_cache
             h_file = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "r+")
             header = h_file.read()
             h_file.close()
@@ -105,7 +108,10 @@ class CONNECTION_HANDLER:
                 client.send(packet)
                 packet = c_file.read(int(CONFIG.packet_size))
             c_file.close()
+            print proc,"~",INFO.finished_send
         else:
+            print proc, "~", ERRORS.invalid_file
+            print proc, "~", INFO.adding_cache
             new_file = open(CONFIG.cache_root+new_hash.hexdigest(), "wb")
             new_header = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "w")
             server.send(request)
@@ -124,6 +130,7 @@ class CONNECTION_HANDLER:
                 else:
                     new_file.close()
                     new_header.close()
+                    print proc,"~",INFO.finished_send
                     break
         return
 
@@ -171,10 +178,10 @@ class CONNECTION_HANDLER:
                             url_port = int(tmp_port)
                         server = RECEIVER()
                         server.connect(url_ip, url_port)
-                        self.get(data, server, receiver)
+                        self.get([ip,port], operation[1], data, server, receiver)
                         self.close(server)
                     elif (operation[0] == "POST"):
-                        break
+                        self.post(receiver)
                     elif (operation[0] == "PUT"):
                         self.put(receiver)
                     elif (operation[0] == "DELETE"):
@@ -209,6 +216,22 @@ class SERVER_HANDLER:
                                             args=(data[0], data[1], data[2]))
                     process.start()
                     processes.append(process)
+                still_alive = []
+                for process in processes:
+                    if process.is_alive():
+                        still_alive.append(process)
+                processes = still_alive
+                print INFO.active_processes, len(processes)
+                if (len(processes) == 0):
+                    print INFO.cleaning_cache
+                    rem_count = 0
+                    for hashes in os.listdir(CONFIG.cache_root):
+                        last_modified = os.path.getmtime(CONFIG.cache_root+hashes)
+                        if (time.time() - last_modified) > CONFIG.cache_timeout:
+                            os.remove(CONFIG.cache_root+hashes)
+                            rem_count += 1
+                    print INFO.files_cleaned, rem_count
+
         except KeyboardInterrupt:
             try:
                 print "\n" + INFO.cleaning_processes

@@ -1,0 +1,10 @@
+HTTP/1.0 200 OK
+Date: Thu, 17 Nov 2016 20:26:48 GMT
+Server: Apache/2.4.7 (Ubuntu)
+Strict-Transport-Security: max-age=1; includeSubDomains
+X-Powered-By: PHP/5.5.9-1ubuntu4.9
+Cache-Control: no-cache, max-age=0, must-revalidate, no-transform
+Vary: Accept-Encoding
+Content-Length: 7774
+Connection: close
+Content-Type: text/html; charset=utf-8

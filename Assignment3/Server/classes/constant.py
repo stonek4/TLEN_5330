@@ -40,6 +40,7 @@ class CONFIG:
     cache_root = "./cache/"
     packet_size = 1024
     max_connections = 1
+    cache_timeout = 1000
     def __init__(self):
         return
 
@@ -47,7 +48,7 @@ class ERRORS:
     server = "Unknown server error"
     invalid_port = "Invalid port number"
     busy_port = "Port is busy, try another"
-    invalid_file = "File not found or cannot be opened"
+    invalid_file = "File not found in cache or cannot be opened"
     invalid_arguments = "Invalid Arguments: (python <client.py> <ip address> <port number>)"
     invalid_command = "Bad request received"
     invalid_http = "The command received was not an http request"
@@ -65,8 +66,13 @@ class INFO:
     client_keep_alive = "The client is pinging the server to keep it alive"
     closing_connection = "Closing connection..."
     cleaning_processes = "Cleaning up processes, press ctrl-c again to force quit"
+    active_processes = "Current number of active processes:"
     killing_process = "User initiated server shutdown, exiting process..."
-
+    using_cache = "Using a cached version of the file"
+    adding_cache = "Adding a new file to the cache"
+    finished_send = "Finished sending the requested file"
+    cleaning_cache = "No active processes, cache clean beginning"
+    files_cleaned = "Number of files removed:"
     def __init__(self):
         return
 

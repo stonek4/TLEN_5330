@@ -56,5 +56,5 @@ class LISTENER:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if (CONFIG.port != 0):
             self.socket.bind((CONFIG.ip_address, int(CONFIG.port)))
-            self.socket.settimeout(None)
+            self.socket.settimeout(int(CONFIG.poll_time))
         return
