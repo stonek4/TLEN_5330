@@ -40,7 +40,7 @@ class CONFIG:
     cache_root = "./cache/"
     packet_size = 1024
     max_connections = 1
-    cache_timeout = 1000
+    cache_timeout = 120
     def __init__(self):
         return
 
@@ -57,6 +57,7 @@ class ERRORS:
     html_not_supported = "Must configure for .html support for errors to be served"
     client_pipe_down = "The pipe to the client closed before the data could send"
     unknown_socket_error = "An unknown socket error occured"
+    client_closed = "Client already closed, shutdown not needed"
     def __init__(self):
         return
 

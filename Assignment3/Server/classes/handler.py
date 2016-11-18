@@ -19,14 +19,6 @@ from messages import MESSAGES
 
 
 class CONNECTION_HANDLER:
-    # send the file to the client
-    def send_file(self, sender, afile):
-        data = afile.read(int(CONFIG.packet_size))
-        while (data):
-            sender.send(data)
-            data = afile.read(int(CONFIG.packet_size))
-        afile.close()
-
     # add a message to file (Looks for class="text" while writing to new file
     # then replaces the next line with the input value of the post. When
     # finished it will move the temporary file where the old one used to be
@@ -47,6 +39,14 @@ class CONNECTION_HANDLER:
         tfile.close()
         os.close(handler)
         shutil.move(temp_path, path)
+
+    # send the file to the client
+    def send_file(self, sender, afile):
+        data = afile.read(int(CONFIG.packet_size))
+        while (data):
+            sender.send(data)
+            data = afile.read(int(CONFIG.packet_size))
+        afile.close()
 
     def not_found(self, sender, url):
         path = PATHS.directory_root + PATHS.not_found
@@ -96,42 +96,46 @@ class CONNECTION_HANDLER:
 
     def get(self, proc, hashstring, request, server, client):
         new_hash = hashlib.md5(hashstring)
-        if (os.path.isfile(CONFIG.cache_root+new_hash.hexdigest())):
-            print proc,"~", INFO.using_cache
-            h_file = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "r+")
-            header = h_file.read()
-            h_file.close()
-            client.send(header+"\r\n\r\n")
-            c_file = open(CONFIG.cache_root+new_hash.hexdigest(), "rb")
-            packet = c_file.read(int(CONFIG.packet_size))
-            while packet:
-                client.send(packet)
+        digest = new_hash.hexdigest()
+        if (os.path.isfile(CONFIG.cache_root+digest)):
+            file_time = os.path.getmtime(CONFIG.cache_root+digest)
+            if (time.time() - file_time) < CONFIG.cache_timeout:
+                print proc,"~", INFO.using_cache
+                h_file = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "r+")
+                header = h_file.read()
+                h_file.close()
+                client.send(header+"\r\n\r\n")
+                c_file = open(CONFIG.cache_root+new_hash.hexdigest(), "rb")
                 packet = c_file.read(int(CONFIG.packet_size))
-            c_file.close()
-            print proc,"~",INFO.finished_send
-        else:
-            print proc, "~", ERRORS.invalid_file
-            print proc, "~", INFO.adding_cache
-            new_file = open(CONFIG.cache_root+new_hash.hexdigest(), "wb")
-            new_header = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "w")
-            server.send(request)
-            first = True
-            while 1:
-                data = server.receive()
-                if (data != ""):
-                    if (first == True):
-                        content = data.split('\r\n\r\n')
-                        new_header.write(content[0])
-                        new_file.write(content[1])
-                        first = False
-                    else:
-                        new_file.write(data)
-                    client.send(data)
+                while packet:
+                    client.send(packet)
+                    packet = c_file.read(int(CONFIG.packet_size))
+                c_file.close()
+                print proc,"~",INFO.finished_send
+                return
+        print proc, "~", ERRORS.invalid_file
+        print proc, "~", INFO.adding_cache
+        new_file = open(CONFIG.cache_root+new_hash.hexdigest(), "wb")
+        new_header = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "w")
+        server.send(request)
+        first = True
+        while 1:
+            data = server.receive()
+            close = ""
+            if (data != ""):
+                if (first == True):
+                    content = data.split('\r\n\r\n')
+                    new_header.write(content[0])
+                    new_file.write(content[1])
+                    first = False
                 else:
-                    new_file.close()
-                    new_header.close()
-                    print proc,"~",INFO.finished_send
-                    break
+                    new_file.write(data)
+                client.send(data)
+            else:
+                new_file.close()
+                new_header.close()
+                print proc,"~",INFO.finished_send
+                break
         return
 
     def close(self, sender):
@@ -178,7 +182,9 @@ class CONNECTION_HANDLER:
                             url_port = int(tmp_port)
                         server = RECEIVER()
                         server.connect(url_ip, url_port)
-                        self.get([ip,port], operation[1], data, server, receiver)
+                        result = self.get([ip,port], operation[1], data, server, receiver)
+                        if result == False:
+                            exit()
                         self.close(server)
                     elif (operation[0] == "POST"):
                         self.post(receiver)

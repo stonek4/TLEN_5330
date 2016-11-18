@@ -25,6 +25,11 @@ class RECEIVER:
         return
 
     def close(self):
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except socket.error, e:
+            if e[0] == errno.ENOTCONN:
+                print ERRORS.client_closed
         self.socket.close()
         return
 
@@ -50,6 +55,7 @@ class LISTENER:
             return False
 
     def close(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
 
     def __init__(self):
