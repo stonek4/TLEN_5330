@@ -1,81 +1,231 @@
 import os
-import threading
-from constant import CONSTANT
+import multiprocessing
+import shutil
+import tempfile
+import signal
+from constant import CONFIG
+from constant import PATHS
+from constant import ERRORS
+from constant import INFO
 from receiver import LISTENER
 from receiver import RECEIVER
-from sender import SENDER
+from messages import MESSAGES
 
-class SERVER_HANDLER:
-    def put(self, file_name, sender):
-        return
 
-    def get(self, file_name, sender, http_format):
-        path = CONSTANT.server_file_location+file_name
-        if path == CONSTANT.server_file_location+"/":
-            path += "index.html"
+
+class CONNECTION_HANDLER:
+    # send the file to the client
+    def send_file(self, sender, afile):
+        data = afile.read(int(CONFIG.packet_size))
+        while (data):
+            sender.send(data)
+            data = afile.read(int(CONFIG.packet_size))
+        afile.close()
+
+    # add a message to file (Looks for class="text" while writing to new file
+    # then replaces the next line with the input value of the post. When
+    # finished it will move the temporary file where the old one used to be
+    def add_post(self, path, post_data):
+        afile = open(path)
+        handler, temp_path = tempfile.mkstemp()
+        tfile = open(temp_path, "w")
+        up_next = 0
+        for line in afile:
+            if up_next == 1:
+                tfile.write(post_data + "\n")
+                up_next = 0
+            else:
+                if 'class="text"' in line:
+                    up_next = 1
+                tfile.write(line)
+        afile.close()
+        tfile.close()
+        os.close(handler)
+        shutil.move(temp_path, path)
+
+    def not_found(self, sender, url):
+        path = PATHS.directory_root + PATHS.not_found
+        self.add_post(path, "404 NOT FOUND: " + url)
+        header = self.messages.get_header(path,".html",404)
+        sender.send(header)
+        self.send_file(sender, open(path,"rb"))
+
+    def server_error(self, sender):
+        path = PATHS.directory_root + PATHS.server_error
+        header = self.messages.get_header(path,".html",500)
+        sender.send(header)
+        self.send_file(sender, open(path,"rb"))
+
+    def bad_request(self, sender, issue, data):
+        path = PATHS.directory_root + PATHS.bad_request
+        if (issue == "method"):
+            self.add_post(path, "400 BAD REQUEST METHOD: " + data)
+        elif (issue == "url"):
+            self.add_post(path, "400 BAD REQUEST URL: " + data)
+        elif (issue == "http"):
+            self.add_post(path, "400 BAD REQUEST HTTP: " + data)
+        else:
+            self.add_post(path, "400 BAD REQUEST")
+        header = self.messages.get_header(path,".html",400)
+        sender.send(header)
+        self.send_file(sender, open(path,"rb"))
+
+    def not_implemented(self, sender, data):
+        path = PATHS.directory_root + PATHS.not_implemented
+        self.add_post(path, "501 NOT IMPLEMENTED: " + data)
+        header = self.messages.get_header(path,".html",404)
+        sender.send(header)
+        self.send_file(sender, open(path,"rb"))
+
+    def post(self, file_name, sender, data):
+        path = PATHS.directory_root + file_name
+        if path == PATHS.directory_root + "/":
+            for name in CONFIG.directory_indexes:
+                if (os.path.isfile(path+name)):
+                    path += name
+                    break
         try:
-            file_type = "."+path.split(".")[1]
-            afile = open(path, "rb")
-            size = os.path.getsize(path)
-            header = http_format + " " + CONSTANT.http_OK + "\n"
-            header += "Content-Type: " + CONSTANT.content_types[file_type] + "\n"
-            header += "Content-Length: " + str(size) + "\n" + "\n"
+            ftype = "."+path.split(".")[2]
+            CONFIG.content_types[ftype]
+            open(path)
+            self.add_post(path, data)
+            header = self.messages.get_header(path, ftype, 200)
             sender.send(header)
-            data = afile.read(int(CONSTANT.packet_size))
-            while (data):
-                sender.send(data)
-                data = afile.read(int(CONSTANT.packet_size))
-            afile.close()
+            self.send_file(sender, open(path,"rb"))
             return
         except IOError:
-            print CONSTANT.file_error
+            print ERRORS.invalid_file
+            self.not_found(sender, path)
+        except KeyError:
+            print ERRORS.not_supported
+            self.not_implemented(sender, ftype)
+        except Exception as e:
+            print ERRORS.server
+            print e
+            self.server_error(sender)
+        return
 
-    def list(self, sender):
-        print CONSTANT.listing_files
-        all_files = ""
-        for afile in os.listdir(CONSTANT.server_file_location):
-            all_files = all_files + afile + " "
-        sender.send_message(all_files)
+    def put(self, sender):
+        self.not_implemented(sender, "PUT")
+        return
 
-    def exit(self):
-        print CONSTANT.exiting
-        self.listener.close()
+    def delete(self, sender):
+        self.not_implemented(sender, "DELETE")
+        return
 
-    def other(self, sender, command):
-        print CONSTANT.unknown_cmd
-        sender.send_message(command + CONSTANT.unknown_cmd)
+    def get(self, file_name, sender):
+        path = PATHS.directory_root + file_name
+        if path == PATHS.directory_root + "/":
+            for name in CONFIG.directory_indexes:
+                if (os.path.isfile(path+name)):
+                    path += name
+                    break
+        try:
+            ftype = "."+path.split(".")[2]
+            CONFIG.content_types[ftype]
+            open(path)
+            header = self.messages.get_header(path, ftype, 200)
+            sender.send(header)
+            self.send_file(sender, open(path,"rb"))
+            return
+        except IOError:
+            print ERRORS.invalid_file
+            self.not_found(sender, path)
+        except KeyError:
+            print ERRORS.not_supported
+            self.not_implemented(sender, ftype)
+        except Exception as e:
+            print ERRORS.server
+            print e
+            self.server_error(sender)
 
-    def thread_handler(self, conn, ip, port):
-        print [ip, port], "~ has connected"
-        while 1:
+    def close(self, sender):
+        header = self.messages.get_header("", "", 0)
+        sender.send(header)
+        sender.close()
+
+    # upon connecting waits for certain time before closing connection
+    # otherwise parses the message from the client and calls the appropriate
+    # method
+    def process_handler(self, conn, ip, port):
+        try:
+            print [ip, port], "~ has connected"
             receiver = RECEIVER(conn)
-            data = receiver.receive()
-            if (data == False):
-                return
-            request = data[0].split()
-            if (len(request) >= 3):
-                print [ip, port], "~", request[0], "command"
-                if (request[0] == "GET"):
-                    print [ip, port], "~ is requesting", request[1]
-                    print [ip, port], "~ is using",request[2]
-                    self.get(request[1], receiver, request[2])
-                if (request[2] == "HTTP/1.0"):
-                    break;
-        receiver.close()
-        exit()
+            while 1:
+                data = receiver.receive()
+                if (data == False):
+                    print [ip, port], "~", INFO.timeout
+                    break
+                request = data[0].split('\r\n')
+                operation = request[0].split()
+                connection = "Close"
 
+                for part in request:
+                    if "Connection:" in part:
+                        connection = part.split()[1]
+
+                if (len(operation) >= 3):
+                    if (operation[2] != "HTTP/1.1" and operation[2] != "HTTP/1.0"):
+                        self.bad_request(receiver, "http", operation[2])
+                        break
+                    print [ip, port], "~", operation[0], "command"
+                    self.messages = MESSAGES(operation[2])
+
+                    if (operation[0] == "GET"):
+                        print [ip, port], "~ is requesting", operation[1]
+                        print [ip, port], "~ is using",operation[2]
+                        self.get(operation[1], receiver)
+                    elif (operation[0] == "POST"):
+                        print [ip, port], "~ is requesting", operation[1]
+                        print [ip, port], "~ is using",operation[2]
+                        new_val = request[len(request)-1].split('=')[1]
+                        self.post(operation[1], receiver, new_val)
+                    elif (operation[0] == "PUT"):
+                        self.put(receiver)
+                    elif (operation[0] == "DELETE"):
+                        self.delete(receiver)
+                    else:
+                        print ERRORS.invalid_command
+                        self.bad_request(receiver, "method", operation[0])
+
+                    if (operation[2] == "HTTP/1.0" or connection.lower() != "keep-alive"):
+                        break
+                else:
+                    self.bad_request(receiver, "unknown", "incorrect format")
+                    break
+        except KeyboardInterrupt:
+            print "\n",[ip, port],"~",INFO.killing_process
+        print [ip, port], "~", INFO.closing_connection
+        self.close(receiver)
+        exit()
+    def __init__(self):
+        self.messages = MESSAGES("HTTP/1.1")
+        return
+
+class SERVER_HANDLER:
     def start(self):
-        threads = []
-        while 1:
-            data = self.listener.accept()
-            if (data == False):
-                break
-            else:
-                thread = threading.Thread(target=self.thread_handler,
-                                        args=(data[0], data[1], data[2]))
-                thread.start()
-        for thread in threading.enumerate():
-            thread.join()
+        processes = []
+        try:
+            while 1:
+                data = self.listener.accept()
+                if (data == False):
+                    break
+                else:
+                    connection = CONNECTION_HANDLER()
+                    process = multiprocessing.Process(target=connection.process_handler,
+                                            args=(data[0], data[1], data[2]))
+                    process.start()
+                    processes.append(process)
+        except KeyboardInterrupt:
+            try:
+                print "\n" + INFO.cleaning_processes
+                for process in processes:
+                    if process.is_alive():
+                        process.join()
+            except KeyboardInterrupt:
+                for process in processes:
+                    if process.is_alive():
+                        process.terminate()
         return True
     def __init__(self):
         self.listener = LISTENER()
