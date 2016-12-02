@@ -44,5 +44,5 @@ class LISTENER:
         if (CONSTANT.port != 0):
             self.socket.bind((CONSTANT.ip_address, int(CONSTANT.port)))
             self.socket.listen(int(CONSTANT.max_connections))
-            self.socket.settimeout(CONSTANT.stay_awake)
+            self.socket.settimeout(float(CONSTANT.stay_awake))
         return

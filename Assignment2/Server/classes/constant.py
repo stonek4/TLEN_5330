@@ -27,7 +27,7 @@ class CONSTANT:
     directory_indexes = []
     ip_address = ""
     port = 0
-    stay_awake = None
+    stay_awake = 30
     document_root = ""
     invalid_arguments = "Invalid Arguments: (python <client.py> <ip address> <port number>)"
     invalid_port_number = "Invalid Arguments: port number must be larger than 5000"
