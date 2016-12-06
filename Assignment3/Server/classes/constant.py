@@ -58,6 +58,7 @@ class ERRORS:
     client_pipe_down = "The pipe to the client closed before the data could send"
     unknown_socket_error = "An unknown socket error occured"
     client_closed = "Client already closed, shutdown not needed"
+    file_expired = "The cached file expired"
     def __init__(self):
         return
 
@@ -74,6 +75,7 @@ class INFO:
     finished_send = "Finished sending the requested file"
     cleaning_cache = "No active processes, cache clean beginning"
     files_cleaned = "Number of files removed:"
+    prefetching = "Prefetching link found in file:"
     def __init__(self):
         return
 

@@ -11,6 +11,8 @@ class RECEIVER:
             return data
         except socket.timeout:
             return ""
+        except socket.error:
+            print ERRORS.server
 
     def send(self, data):
         try:
@@ -38,8 +40,11 @@ class RECEIVER:
         self.socket.settimeout(float(CONFIG.keep_alive_time))
 
     def connect(self, ip, port):
-        self.socket.connect((ip, int(port)))
-        self.socket.settimeout(float(CONFIG.keep_alive_time))
+        try:
+            self.socket.connect((ip, int(port)))
+            self.socket.settimeout(float(CONFIG.keep_alive_time))
+        except socket.error:
+            print ERRORS.server
 
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

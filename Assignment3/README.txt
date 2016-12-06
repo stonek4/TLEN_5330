@@ -1,50 +1,54 @@
-TLEN 5330-002: Assignment 2
+TLEN 5330-002: Assignment 3
 
 Contained in folder is one folder named "Server".
 To run the server, navigate into the "Server" folder and run:
 
   python server.py
 
+  or
+
+  python server.py [port#]
+
+  or 
+
+  python server.py [port#] [cache timeout]
+
+Note: The port number can also be changed in the configuration settings, the
+default cache timeout value cannot be changed but is set to 120.
+
 Upon starting, the server will display:
 
   Server started...
 
-The server directory is currently stored in Server/www/ where index.html is the
-default file. This can be changed in the server configuration file which is
-located at Server/ws.conf
+The server directory is currently stored in Server/www/ where error files are
+located.  The error files may be served back to the client if an error occurs.
 
 Other settings can be changed in ws.conf including the file types, keep alive
 time, port number and more (see configuration file)
 
-In order to test the server, use commands such as GET and POST, or access
-the server using the browser.  By default the server will use the localhost
-ip address so you could type that and the port number into the browser in
-order to access the default page.
+When the server starts, it will wait for connections.  Upon receiving a
+connection it will spin off a process to deal with that connection.  Within
+the process, the request from the client will be parsed.
 
-Using the page that is currently in the www directory, you can also send post
-requests to the server by typing into the input box and pressing enter.
+If the request is a valid request, the proxy will first check the cache to
+see if a cached version of the file exists.  If it does, it will send the
+cached header and the cached file to the user.
 
-The program can handle a few different types of errors by sending a generic
-error file to the client. Errors handled are:
+If the file does not exist in the cache, or the timeout for that cached file
+has occurred, the proxy will make a connection with the server in the request
+and send the request to the server.  When it receives the response it will
+send the response back to the client, as well as write the response header and
+content to a cached file.
 
-  400
-  404
-  500
-  501
+Every 10 seconds the proxy will poll itself for active connections.  If there
+are no active connections, then the proxy will begin a cache cleanup where it
+will remove any files that are in the cache that are past the expiration time.
 
-In general any unknown errors fall under 500 when processing commands.
+Extra Credit:   I did spend more time on trying to make a robust proxy than
+on the link prefetching.  I began work on link prefetching but found that
+many different types of links can be found in many different files and that
+in order to do link fetching appropriately it would take a lot of time.
 
-It is a known bug that if you remove html from the configuration file that
-the server will not be able to show errors to the client.
-
-The server can be killed using CTRL-C.  Upon killing the server it will
-try to exit processes regardless of what the processes are doing.
-
-The python version used to test this program is:
-
-  Python 2.7.12
-
-Do not delete the .pyc files within the subdirectories of this project.  In the
-case that the project does not compile, you may try to recompile the project.
-
-Extra credit: POST commands work, but need a certain html class in order to work
+I did not do very much HTTP 1.1 testing however my proxy should be able to
+handle HTTP 1.1 requests and it handles keep-alives to make sure that
+multiple files can be requested from the same connection.

@@ -1,13 +1,12 @@
 import os
-import sys
 import multiprocessing
 import shutil
 import tempfile
-import signal
 import urlparse
-import socket
 import hashlib
 import time
+#from bs4 import BeautifulSoup
+#from urllib2 import urlopen
 from constant import CONFIG
 from constant import PATHS
 from constant import ERRORS
@@ -19,9 +18,11 @@ from messages import MESSAGES
 
 
 class CONNECTION_HANDLER:
-    # add a message to file (Looks for class="text" while writing to new file
-    # then replaces the next line with the input value of the post. When
-    # finished it will move the temporary file where the old one used to be
+    '''
+    add a message to file (Looks for class="text" while writing to new file
+    then replaces the next line with the input value of the post. When
+    finished it will move the temporary file where the old one used to be
+    '''
     def add_post(self, path, post_data):
         afile = open(path)
         handler, temp_path = tempfile.mkstemp()
@@ -40,7 +41,9 @@ class CONNECTION_HANDLER:
         os.close(handler)
         shutil.move(temp_path, path)
 
-    # send the file to the client
+    '''
+    send the file to the client
+    '''
     def send_file(self, sender, afile):
         data = afile.read(int(CONFIG.packet_size))
         while (data):
@@ -48,6 +51,9 @@ class CONNECTION_HANDLER:
             data = afile.read(int(CONFIG.packet_size))
         afile.close()
 
+    '''
+    if a file is not found, send a 404 back
+    '''
     def not_found(self, sender, url):
         path = PATHS.directory_root + PATHS.not_found
         self.add_post(path, "404 NOT FOUND: " + url)
@@ -55,12 +61,18 @@ class CONNECTION_HANDLER:
         sender.send(header)
         self.send_file(sender, open(path,"rb"))
 
+    '''
+    if the server experiences an internal error, send 500 back
+    '''
     def server_error(self, sender):
         path = PATHS.directory_root + PATHS.server_error
         header = self.messages.get_header(path,".html",500)
         sender.send(header)
         self.send_file(sender, open(path,"rb"))
 
+    '''
+    if the server receives a bad request, try to send an appropriate 400 back
+    '''
     def bad_request(self, sender, issue, data):
         path = PATHS.directory_root + PATHS.bad_request
         if (issue == "method"):
@@ -75,6 +87,9 @@ class CONNECTION_HANDLER:
         sender.send(header)
         self.send_file(sender, open(path,"rb"))
 
+    '''
+    if a feature is not implemented send 501 back
+    '''
     def not_implemented(self, sender, data):
         path = PATHS.directory_root + PATHS.not_implemented
         self.add_post(path, "501 NOT IMPLEMENTED: " + data)
@@ -86,15 +101,32 @@ class CONNECTION_HANDLER:
         self.not_implemented(sender, "POST")
         return
 
-    def put(self, sender):
+    def head(self, sender):
         self.not_implemented(sender, "PUT")
         return
 
-    def delete(self, sender):
-        self.not_implemented(sender, "DELETE")
-        return
+    '''
+    a small attempt at link prefetching, takes the request and replaces
+    the file in the request with the prefetch file... issue being that
+    some links do not have the full url, just the relative location
+    '''
+    #def prefetch(self, proc, html_link, request, server):
+    #    html_file = urlopen(html_link)
+    #    soup = BeautifulSoup(html_file, "lxml")
+    #    for tag in soup.findAll('a'):
+    #        link = tag.get('href')
+    #        print proc, INFO.prefetching, link
+    #        request.replace(html_link, link)
+    #        self.get(proc, link, request, server, False)
 
+    '''
+    get method, checks if the file exists in cache and is within the expiration
+    period, and if so serves it to the client, otherwise it fetches the file
+    from the server and writes it to cache and sends it to the client
+    '''
     def get(self, proc, hashstring, request, server, client):
+        #if (hashstring.split(".")[2] == "html"):
+        #    self.prefetch(proc, hashstring, request, server)
         new_hash = hashlib.md5(hashstring)
         digest = new_hash.hexdigest()
         if (os.path.isfile(CONFIG.cache_root+digest)):
@@ -104,16 +136,21 @@ class CONNECTION_HANDLER:
                 h_file = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "r+")
                 header = h_file.read()
                 h_file.close()
-                client.send(header+"\r\n\r\n")
+                if (client):
+                    client.send(header+"\r\n\r\n")
                 c_file = open(CONFIG.cache_root+new_hash.hexdigest(), "rb")
                 packet = c_file.read(int(CONFIG.packet_size))
                 while packet:
-                    client.send(packet)
+                    if (client):
+                        client.send(packet)
                     packet = c_file.read(int(CONFIG.packet_size))
                 c_file.close()
                 print proc,"~",INFO.finished_send
                 return
-        print proc, "~", ERRORS.invalid_file
+            else:
+                print proc, "~", ERRORS.file_expired
+        else:
+            print proc, "~", ERRORS.invalid_file
         print proc, "~", INFO.adding_cache
         new_file = open(CONFIG.cache_root+new_hash.hexdigest(), "wb")
         new_header = open(CONFIG.cache_root+new_hash.hexdigest()+"header", "w")
@@ -130,7 +167,8 @@ class CONNECTION_HANDLER:
                     first = False
                 else:
                     new_file.write(data)
-                client.send(data)
+                if (client):
+                    client.send(data)
             else:
                 new_file.close()
                 new_header.close()
@@ -143,9 +181,11 @@ class CONNECTION_HANDLER:
         sender.send(header)
         sender.close()
 
-    # upon connecting waits for certain time before closing connection
-    # otherwise parses the message from the client and calls the appropriate
-    # method
+    '''
+    upon connecting waits for certain time before closing connection
+    otherwise parses the message from the client and calls the appropriate
+    method
+    '''
     def process_handler(self, conn, ip, port):
         try:
             print [ip, port], "~ has connected"
@@ -188,10 +228,8 @@ class CONNECTION_HANDLER:
                         self.close(server)
                     elif (operation[0] == "POST"):
                         self.post(receiver)
-                    elif (operation[0] == "PUT"):
-                        self.put(receiver)
-                    elif (operation[0] == "DELETE"):
-                        self.delete(receiver)
+                    elif (operation[0] == "HEAD"):
+                        self.head(receiver)
                     else:
                         print ERRORS.invalid_command
                         self.bad_request(receiver, "method", operation[0])
@@ -211,6 +249,10 @@ class CONNECTION_HANDLER:
         return
 
 class SERVER_HANDLER:
+    '''
+    handle new connections and if there are no connections, start the cache
+    cleanup
+    '''
     def start(self):
         processes = []
         try:
