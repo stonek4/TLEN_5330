@@ -23,10 +23,10 @@ class CONNECTION_HANDLER:
         afile.close()
 
     def recv_file(self, sender, afile):
-        data = sender.receive()
+        data = sender.receive_data()
         while (data):
-            afile.write(data)
-            data = sender.receive()
+            afile.write(data[0])
+            data = sender.receive_data()
         afile.close()
 
     def not_found(self, sender, url):
@@ -55,14 +55,16 @@ class CONNECTION_HANDLER:
         path = PATHS.directory_root + user + "/" + file_name + "/"
         if not os.path.exists(path):
             os.makedirs(path)
-        self.recv_file(sender, open(path+part,"w+"))
+        sender.send("ACK")
+        self.recv_file(sender, open(path+"."+part,"wb"))
+        print "finished receiving file"
 
     def delete(self, sender):
         self.not_implemented(sender, "DELETE")
         return
 
     def list(self, user, file_name, sender):
-        path = PATHS.directory_root + user + "/" + file_name + "/"
+        path = PATHS.directory_root + user + "/" + "." + file_name + "/"
         try:
             parts = ""
             for afile in os.listdir(path):
@@ -104,33 +106,36 @@ class CONNECTION_HANDLER:
         try:
             print [ip, port], "~ has connected"
             receiver = RECEIVER(conn)
-            while 1:
-                data = receiver.receive()
-                if (data == False):
-                    print [ip, port], "~", INFO.timeout
-                    break
-                request = data[0].split()
-                operation = request[0]
-                user = request[1]
-                password = request[2]
-                file_name = request[3]
-                part = "-1"
-                if (len(request) == 5):
-                    part = request[4]
+            data = receiver.receive()
+            if (data == False):
+                print [ip, port], "~", INFO.client_disconnect
+                self.close(receiver)
+                return
+            request = data[0].split()
+            print request
+            operation = request[0]
+            file_name = request[1]
+            user = request[2]
+            password = request[3]
+            part = "-1"
+            if (len(request) == 5):
+                part = request[4]
 
-                print [ip, port], "~ is requesting", file_name
-                print [ip, port], "~ using method", operation
+            print [ip, port], "~ is requesting", file_name
+            print [ip, port], "~ using method", operation
 
-                if (operation == "GET"):
-                    self.get(user, file_name, receiver)
-                if (operation == "PUT"):
-                    self.put(user, file_name, part, receiver)
-                if (operation == "LIST"):
-                    self.list(user, file_name, receiver)
-                else:
-                    print ERRORS.invalid_command
+            if (operation == "GET"):
+                self.get(user, file_name, receiver)
+            elif (operation == "PUT"):
+                self.put(user, file_name, part, receiver)
+            elif (operation == "LIST"):
+                self.list(user, file_name, receiver)
+            else:
+                print ERRORS.invalid_command
         except KeyboardInterrupt:
             print "\n",[ip, port],"~",INFO.killing_process
+        except:
+            print ERRORS.unknown_socket_error
         print [ip, port], "~", INFO.closing_connection
         self.close(receiver)
         exit()

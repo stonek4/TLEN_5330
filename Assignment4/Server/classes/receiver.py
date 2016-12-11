@@ -2,6 +2,7 @@ import socket
 import errno
 from constant import CONFIG
 from constant import ERRORS
+from constant import INFO
 
 class RECEIVER:
     def receive(self):
@@ -11,6 +12,15 @@ class RECEIVER:
             return [data, client_address]
         except socket.timeout:
             return False
+        except socket.error:
+            print INFO.client_disconnect
+            return False
+
+    def receive_data(self):
+        self.socket.settimeout(3)
+        data = self.receive()
+        self.socket.settimeout(float(CONFIG.keep_alive_time))
+        return data
 
     def send(self, data):
         try:
@@ -25,6 +35,8 @@ class RECEIVER:
         return
 
     def close(self):
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.receive()
         self.socket.close()
         return
 

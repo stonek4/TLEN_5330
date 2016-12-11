@@ -1,0 +1,6 @@
+import hashlib
+
+class CONFIG:
+    # parses the configuration file
+    @staticmethod
+    def read_conPUT constant.py Kevin password 1
