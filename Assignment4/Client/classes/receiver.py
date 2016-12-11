@@ -11,6 +11,8 @@ class RECEIVER:
             return [data, client_address]
         except socket.timeout:
             return False
+        except:
+            return False
 
     def send(self, data):
         try:
@@ -27,8 +29,8 @@ class RECEIVER:
     def connect(self):
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(float(CONFIG.keep_alive_time))
             self.socket.connect((self.ip, self.port))
+            self.socket.settimeout(float(CONFIG.keep_alive_time))
         except socket.error:
             self.connected = False
             return False
@@ -36,8 +38,10 @@ class RECEIVER:
         return True
 
     def close(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.receive()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except:
+            print "No shutdown required"
         self.socket.close()
         self.connected = False
         return

@@ -24,7 +24,7 @@ class CONNECTION_HANDLER:
 
     def recv_file(self, sender, afile):
         data = sender.receive_data()
-        while (data):
+        while (data[0]):
             afile.write(data[0])
             data = sender.receive_data()
         afile.close()
@@ -63,13 +63,18 @@ class CONNECTION_HANDLER:
         self.not_implemented(sender, "DELETE")
         return
 
-    def list(self, user, file_name, sender):
-        path = PATHS.directory_root + user + "/" + "." + file_name + "/"
+    def list(self, user, sender):
+        path = PATHS.directory_root + user
         try:
-            parts = ""
-            for afile in os.listdir(path):
-                parts += os.path.basename(afile.name) + " "
-            sender.send(parts)
+            file_names = [x[0] for x in os.walk(path)]
+            file_names.pop(0)
+            for name in file_names:
+                files = os.walk(name).next()[2]
+                output = name.split("/")[-1] + " "
+                for afile in files:
+                    output += afile + " "
+                sender.send(output)
+                sender.receive()
             return
         except IOError:
             print ERRORS.invalid_file
@@ -79,12 +84,14 @@ class CONNECTION_HANDLER:
             print e
             self.server_error(sender)
 
-    def get(self, user, file_name, sender):
+    def get(self, user, file_name, part, sender):
         path = PATHS.directory_root + user + "/" + file_name + "/"
         try:
             for afile in os.listdir(path):
-                open(path + afile)
-                self.send_file(sender, open(path, "rb"))
+                if (afile == "."+part):
+                    print path+afile
+                    self.send_file(sender, open(path + afile))
+                    sender.close()
             return
         except IOError:
             print ERRORS.invalid_file
@@ -95,8 +102,6 @@ class CONNECTION_HANDLER:
             self.server_error(sender)
 
     def close(self, sender):
-        header = self.messages.get_header("", "", 0)
-        sender.send(header)
         sender.close()
 
     # upon connecting waits for certain time before closing connection
@@ -125,11 +130,11 @@ class CONNECTION_HANDLER:
             print [ip, port], "~ using method", operation
 
             if (operation == "GET"):
-                self.get(user, file_name, receiver)
+                self.get(user, file_name, part, receiver)
             elif (operation == "PUT"):
                 self.put(user, file_name, part, receiver)
             elif (operation == "LIST"):
-                self.list(user, file_name, receiver)
+                self.list(user, receiver)
             else:
                 print ERRORS.invalid_command
         except KeyboardInterrupt:

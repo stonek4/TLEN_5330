@@ -1,5 +1,6 @@
 import os
 import math
+from collections import defaultdict
 from constant import CONFIG
 from constant import PATHS
 from constant import ERRORS
@@ -12,21 +13,63 @@ from receiver import RECEIVER
 class CONNECTION_HANDLER:
     # send the file to the client
     def send_file(self, sender, data):
-        chunks = [data[x:x+100] for x in range(0, len(data), int(CONFIG.packet_size))]
-        for chunk in chunks:
-            sender.send(chunk)
+        sender.send(data)
 
     def recv_file(self, sender, afile):
         data = sender.receive()
-        while (data):
+        while (data[0]):
             afile.write(data[0])
             data = sender.receive()
-        afile.close()
 
     def list(self):
+        all_files = defaultdict(set)
+        for receiver in self.receivers:
+            receiver.connect()
+            if receiver.connected:
+                receiver.send("LIST all" + " " + CONFIG.username + " " + CONFIG.password)
+                while 1:
+                    newput = receiver.receive()
+                    if (newput[0]):
+                        afile = newput[0].split()
+                        name = afile.pop(0)
+                        for bfile in afile:
+                            all_files[name].add(bfile)
+                        receiver.send("ACK")
+                    else:
+                        receiver.close()
+                        break
+        for key, files in all_files.items():
+            if len(files) == 4:
+                print key
+            else:
+                print key + " [INCOMPLETE]"
         return
 
     def get(self, file_name):
+        afile = open(file_name, "wb")
+        parts_retrieved = 1
+        while 1:
+            part_wrote = False
+            for receiver in self.receivers:
+                needed = PARTS.get_parts(file_name, receiver.name)
+                for need in needed:
+                    if (need == 0):
+                        need = 4
+                    if (need == parts_retrieved):
+                        receiver.connect()
+                        if (receiver.connected):
+                            receiver.send("GET"+" " +file_name+" "+CONFIG.username+" "+CONFIG.password+" "+str(need))
+                            self.recv_file(receiver, afile)
+                            receiver.close()
+                            parts_retrieved += 1
+                            part_wrote = True
+                            break
+            if ( not part_wrote):
+                print ("File is unavailable, not enough parts")
+            if (parts_retrieved == 5):
+                break
+        afile.close()
+
         return
 
     def put(self, file_name):
@@ -50,7 +93,6 @@ class CONNECTION_HANDLER:
                         need -= 1
                         if (receiver.receive()):
                             self.send_file(receiver, parts[need])
-                        receiver.receive()
                         receiver.close()
             afile.close()
 

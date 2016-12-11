@@ -1,0 +1,148 @@
+Homework 8:
+Team members: Kevin Stoner (stonek4@rpi.edu)
+
+Query costs before tuning
+(ran on my Lenovo T430):
+
+      First     All
+Q1    145.92    148.48
+Q2    188.46    323.79
+Q3    23046.10  174361.22
+Q4    11688.28  11689.03
+Q5    0.57      681.32
+Q6    14960.93  14960.95
+__________________________
+Total:50030.26  202164.79
+
+Indices created:
+
+create index r_idx on imdbratings(rating);
+cluster imdbratings using r_idx;
+create index tr_idx on twitterratings(rating);
+cluster twitterratings using tr_idx;
+create index tr2_idx on twitterratings(userid);
+create index mr_idx on movieroles(actorid);
+create index mr2_idx on movieroles(movieid);
+
+Re-write Question 3:
+explain SELECT
+  m.id,
+  m.name,
+  avg(t.rating)::numeric(4,2)
+FROM
+  movies m JOIN twitterratings t ON m.id = t.movieid
+GROUP BY
+  m.id
+HAVING
+  avg(t.rating) =
+  (SELECT
+    avg(t.rating)
+  FROM
+    movies m JOIN twitterratings t ON m.id = t.movieid
+  GROUP BY
+    m.id
+  ORDER BY
+    avg(t.rating)
+  LIMIT
+    1);
+
+Query plans effected (an index may impact more than one query):
+
+QUESTION 1:
+
+ Not effected
+
+QUESTION 2 QUERY PLAN:
+
+Hash Join  (cost=10.41..145.75 rows=60 width=28)
+   Hash Cond: (m.id = r.movieid)
+   InitPlan 2 (returns $1)
+     ->  Result  (cost=0.32..0.33 rows=1 width=0)
+           InitPlan 1 (returns $0)
+             ->  Limit  (cost=0.28..0.32 rows=1 width=8)
+                   ->  Index Only Scan using r_idx on imdbratings  (cost=0.28..180.67 rows=4708 width=8)
+                         Index Cond: (rating IS NOT NULL)
+   ->  Seq Scan on movies m  (cost=0.00..117.08 rows=4708 width=20)
+   ->  Hash  (cost=9.33..9.33 rows=60 width=12)
+         ->  Index Scan using r_idx on imdbratings r  (cost=0.28..9.33 rows=60 width=12)
+               Index Cond: (rating = $1)
+
+QUESTION 3 QUERY PLAN: (no indexes but rewritten)
+
+HashAggregate  (cost=28893.87..28988.03 rows=4708 width=24)
+   Group Key: m.id
+   Filter: (avg(t.rating) = $0)
+   InitPlan 1 (returns $0)
+     ->  Limit  (cost=14058.17..14058.18 rows=1 width=8)
+           ->  Sort  (cost=14058.17..14069.94 rows=4708 width=8)
+                 Sort Key: (avg(t_1.rating))
+                 ->  HashAggregate  (cost=13975.78..14034.63 rows=4708 width=8)
+                       Group Key: m_1.id
+                       ->  Hash Join  (cost=175.93..12255.95 rows=343966 width=8)
+                             Hash Cond: (t_1.movieid = m_1.id)
+                             ->  Seq Scan on twitterratings t_1  (cost=0.00..5630.66 rows=343966 width=8)
+                             ->  Hash  (cost=117.08..117.08 rows=4708 width=4)
+                                   ->  Seq Scan on movies m_1  (cost=0.00..117.08 rows=4708 width=4)
+   ->  Hash Join  (cost=175.93..12255.95 rows=343966 width=24)
+         Hash Cond: (t.movieid = m.id)
+         ->  Seq Scan on twitterratings t  (cost=0.00..5630.66 rows=343966 width=8)
+         ->  Hash  (cost=117.08..117.08 rows=4708 width=20)
+               ->  Seq Scan on movies m  (cost=0.00..117.08 rows=4708 width=20)
+
+QUESTION 4 QUERY PLAN:
+
+HashAggregate  (cost=385.13..385.88 rows=75 width=19)
+   Group Key: a.id, a.name, a.surname
+   ->  Nested Loop  (cost=35.50..384.57 rows=75 width=19)
+         ->  Hash Join  (cost=35.08..300.51 rows=178 width=8)
+               Hash Cond: (mr2.movieid = r2.movieid)
+               ->  Nested Loop  (cost=1.13..259.45 rows=1421 width=12)
+                     ->  Nested Loop  (cost=0.70..72.07 rows=338 width=4)
+                           ->  Index Scan using r_idx on imdbratings r1  (cost=0.28..8.39 rows=6 width=4)
+                                 Index Cond: (rating < 2::double precision)
+                           ->  Index Scan using mr2_idx on movieroles mr1  (cost=0.42..9.98 rows=63 width=8)
+                                 Index Cond: (movieid = r1.movieid)
+                     ->  Index Scan using mr_idx on movieroles mr2  (cost=0.42..0.52 rows=3 width=8)
+                           Index Cond: (actorid = mr1.actorid)
+               ->  Hash  (cost=26.59..26.59 rows=589 width=4)
+                     ->  Index Scan using r_idx on imdbratings r2  (cost=0.28..26.59 rows=589 width=4)
+                           Index Cond: (rating > 8::double precision)
+         ->  Index Scan using actors_pkey on actors a  (cost=0.42..0.46 rows=1 width=19)
+               Index Cond: (id = mr1.actorid)
+
+QUESTION 5 QUERY PLAN:
+
+ Not effected
+
+QUESTION 6 QUERY PLAN:
+
+HashAggregate  (cost=4834.74..4834.76 rows=1 width=12)
+   Group Key: u.id, u.twitterid
+   Filter: (count(*) >= 10)
+   ->  Nested Loop  (cost=1.14..4834.73 rows=1 width=12)
+         ->  Nested Loop Anti Join  (cost=0.84..4834.19 rows=1 width=4)
+               ->  Index Scan using tr_idx on twitterratings tr  (cost=0.42..218.77 rows=6134 width=4)
+                     Index Cond: (rating < 3)
+               ->  Index Scan using tr2_idx on twitterratings tr1  (cost=0.42..2.97 rows=7 width=4)
+                     Index Cond: (userid = tr.userid)
+                     Filter: (rating > 8)
+         ->  Index Scan using twitterusers_pkey on twitterusers u  (cost=0.29..0.53 rows=1 width=12)
+               Index Cond: (id = tr.userid)
+
+Query costs after tuning:
+
+     First     All
+Q1    145.92    148.48
+Q2    10.41     145.75
+Q3    28893.87  28988.03  <---- My rewrite actually made it worse for the First
+Q4    385.13    385.88          but All cost went significantly down
+Q5    0.57      681.32
+Q6    4834.74   4834.76
+__________________________
+Total:34270.64  35184.22
+Old:  50030.26  202164.79
+
+Savings:
+
+First: 34270.64 / 50030.26  = .685
+All:   35184.22 / 202164.79 = .17

@@ -1,0 +1,40 @@
+e precision)
+         ->  Index Scan using actors_pkey on actors a  (cost=0.42..0.46 rows=1 width=19)
+               Index Cond: (id = mr1.actorid)
+
+QUESTION 5 QUERY PLAN:
+
+ Not effected
+
+QUESTION 6 QUERY PLAN:
+
+HashAggregate  (cost=4834.74..4834.76 rows=1 width=12)
+   Group Key: u.id, u.twitterid
+   Filter: (count(*) >= 10)
+   ->  Nested Loop  (cost=1.14..4834.73 rows=1 width=12)
+         ->  Nested Loop Anti Join  (cost=0.84..4834.19 rows=1 width=4)
+               ->  Index Scan using tr_idx on twitterratings tr  (cost=0.42..218.77 rows=6134 width=4)
+                     Index Cond: (rating < 3)
+               ->  Index Scan using tr2_idx on twitterratings tr1  (cost=0.42..2.97 rows=7 width=4)
+                     Index Cond: (userid = tr.userid)
+                     Filter: (rating > 8)
+         ->  Index Scan using twitterusers_pkey on twitterusers u  (cost=0.29..0.53 rows=1 width=12)
+               Index Cond: (id = tr.userid)
+
+Query costs after tuning:
+
+     First     All
+Q1    145.92    148.48
+Q2    10.41     145.75
+Q3    28893.87  28988.03  <---- My rewrite actually made it worse for the First
+Q4    385.13    385.88          but All cost went significantly down
+Q5    0.57      681.32
+Q6    4834.74   4834.76
+__________________________
+Total:34270.64  35184.22
+Old:  50030.26  202164.79
+
+Savings:
+
+First: 34270.64 / 50030.26  = .685
+All:   35184.22 / 202164.79 = .17

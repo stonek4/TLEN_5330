@@ -35,9 +35,10 @@ class RECEIVER:
         return
 
     def close(self):
-        self.socket.shutdown(socket.SHUT_RDWR)
-        self.receive()
-        self.socket.close()
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except:
+            print "No shutdown required"
         return
 
     def __init__(self, conn):
