@@ -16,8 +16,8 @@ class CONFIG:
                     configuration.pop(0)
                     for index in configuration:
                         CONFIG.directory_indexes.append(index)
-                elif configuration[0] == "ContentType":
-                    CONFIG.content_types[configuration[1]] = configuration[2]
+                elif configuration[0] == "Login":
+                    CONFIG.logins[configuration[1]] = configuration[2]
                 elif configuration[0] == "KeepAliveTime":
                     CONFIG.keep_alive_time = configuration[1]
                 elif configuration[0] == "PacketSize":
@@ -30,7 +30,7 @@ class CONFIG:
             return False
         return True
     keep_alive_time = 0
-    content_types = {}
+    logins = {}
     directory_indexes = []
     ip_address = ""
     port = 0

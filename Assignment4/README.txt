@@ -1,50 +1,61 @@
-TLEN 5330-002: Assignment 2
+TLEN 5330-002: Assignment 4
 
-Contained in folder is one folder named "Server".
+Contained in folder are two folders name Client and Server.
 To run the server, navigate into the "Server" folder and run:
 
-  python server.py
+  python server.py [Server name] [Port]
 
 Upon starting, the server will display:
 
   Server started...
 
-The server directory is currently stored in Server/www/ where index.html is the
-default file. This can be changed in the server configuration file which is
-located at Server/ws.conf
+To run the client, navigate into the "Client" folder and run:
 
-Other settings can be changed in ws.conf including the file types, keep alive
-time, port number and more (see configuration file)
+  python client.py
 
-In order to test the server, use commands such as GET and POST, or access
-the server using the browser.  By default the server will use the localhost
-ip address so you could type that and the port number into the browser in
-order to access the default page.
+Upon starting, the client will display:
 
-Using the page that is currently in the www directory, you can also send post
-requests to the server by typing into the input box and pressing enter.
+  Client started...
 
-The program can handle a few different types of errors by sending a generic
-error file to the client. Errors handled are:
+If there is no directory already, the server will create a directory for itself
+by the name given in the command.
 
-  400
-  404
-  500
-  501
+The server supports 3 commands: GET, PUT, LIST
 
-In general any unknown errors fall under 500 when processing commands.
+The server configuration file contains settings such as keep alive time.
 
-It is a known bug that if you remove html from the configuration file that
-the server will not be able to show errors to the client.
+The client configuration file contains settings for the number of servers
+and the redundancy.  Both of these settings can be configured.  The client
+configuration also specifies a username and password.
 
-The server can be killed using CTRL-C.  Upon killing the server it will
-try to exit processes regardless of what the processes are doing.
+The client can send any of the three commands mentioned above to the server.
+
+
+List will display the files contained on the server based on the user.  If there
+are no files, nothing will be displayed.  If there are partial files then
+incomplete will be displayed next to the file name.
+
+
+Get will retrieve the requested file from the server.  If there are not enough
+parts, the file retrieve will fail.
+
+
+Put will distribute portions of a file to the servers based on the server and
+redundancy settings.  Each file will be distributed based on its md5 hash.
+
+The server  and client can be killed using CTRL-C.  Upon killing the server it
+will try to exit processes regardless of what the processes are doing.
+
+
+Extra credit:
+The get command will only pull the portions of the file that it needs from the
+servers.  It will not pull duplicate portions.
+
+
 
 The python version used to test this program is:
 
-  Python 2.7.12
+  Python 2.7.12+
 
 Do not delete the .pyc files within the subdirectories of this project.  In the
 case that the project does not compile, you may try to recompile the project.
-
-Extra credit: POST commands work, but need a certain html class in order to work

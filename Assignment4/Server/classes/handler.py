@@ -1,8 +1,5 @@
 import os
 import multiprocessing
-import shutil
-import tempfile
-import signal
 from constant import CONFIG
 from constant import PATHS
 from constant import ERRORS
@@ -29,23 +26,8 @@ class CONNECTION_HANDLER:
             data = sender.receive_data()
         afile.close()
 
-    def not_found(self, sender, url):
-        path = PATHS.directory_root + PATHS.not_found
-        header = self.messages.get_header(path,".html",404)
-        sender.send(header)
-        self.send_file(sender, open(path,"rb"))
-
-    def server_error(self, sender):
-        path = PATHS.directory_root + PATHS.server_error
-        header = self.messages.get_header(path,".html",500)
-        sender.send(header)
-        self.send_file(sender, open(path,"rb"))
-
     def not_implemented(self, sender, data):
-        path = PATHS.directory_root + PATHS.not_implemented
-        header = self.messages.get_header(path,".html",404)
-        sender.send(header)
-        self.send_file(sender, open(path,"rb"))
+        print "Not implemented"
 
     def post(self, file_name, sender, data):
         self.not_implemented(sender, "DELETE")
@@ -67,6 +49,8 @@ class CONNECTION_HANDLER:
         path = PATHS.directory_root + user
         try:
             file_names = [x[0] for x in os.walk(path)]
+            if (len(file_names) == 0):
+                return
             file_names.pop(0)
             for name in file_names:
                 files = os.walk(name).next()[2]
@@ -78,11 +62,9 @@ class CONNECTION_HANDLER:
             return
         except IOError:
             print ERRORS.invalid_file
-            self.not_found(sender, path)
         except Exception as e:
             print ERRORS.server
             print e
-            self.server_error(sender)
 
     def get(self, user, file_name, part, sender):
         path = PATHS.directory_root + user + "/" + file_name + "/"
@@ -95,11 +77,9 @@ class CONNECTION_HANDLER:
             return
         except IOError:
             print ERRORS.invalid_file
-            self.not_found(sender, path)
         except Exception as e:
             print ERRORS.server
             print e
-            self.server_error(sender)
 
     def close(self, sender):
         sender.close()
@@ -122,6 +102,16 @@ class CONNECTION_HANDLER:
             file_name = request[1]
             user = request[2]
             password = request[3]
+            if (user not in CONFIG.logins):
+                print "Unauthorized login attempt"
+                receiver.send("UAD")
+            if (CONFIG.logins[user] != password):
+                print "Unauthorized login attempt"
+                receiver.send("UAD")
+                return
+            else:
+                receiver.send("ACK")
+                receiver.receive()
             part = "-1"
             if (len(request) == 5):
                 part = request[4]
@@ -145,7 +135,6 @@ class CONNECTION_HANDLER:
         self.close(receiver)
         exit()
     def __init__(self):
-        self.messages = MESSAGES("HTTP/1.1")
         return
 
 class SERVER_HANDLER:
